@@ -37,11 +37,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     })),
 
   removeProject: (projectId) =>
-    set((state) => ({
-      projects: state.projects.filter((p) => p.id !== projectId),
-      selectedProjectId:
-        state.selectedProjectId === projectId ? null : state.selectedProjectId
-    })),
+    set((state) => {
+      const isSelectedProject = state.selectedProjectId === projectId;
+      // Clear localStorage if we're removing the currently selected project
+      if (isSelectedProject) {
+        localStorage.removeItem(LAST_SELECTED_PROJECT_KEY);
+      }
+      return {
+        projects: state.projects.filter((p) => p.id !== projectId),
+        selectedProjectId: isSelectedProject ? null : state.selectedProjectId
+      };
+    }),
 
   updateProject: (projectId, updates) =>
     set((state) => ({
