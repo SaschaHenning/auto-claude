@@ -77,6 +77,7 @@ import {
 } from '../../shared/constants';
 import { startTask, stopTask, submitReview, checkTaskRunning, recoverStuckTask, deleteTask } from '../stores/task-store';
 import type { Task, TaskCategory, ExecutionPhase, WorktreeStatus, WorktreeDiff, ReviewReason, TaskLogs, TaskLogPhase, TaskPhaseLog, TaskLogEntry } from '../../shared/types';
+import { TaskEditDialog } from './TaskEditDialog';
 
 // Category icon mapping
 const CategoryIcon: Record<TaskCategory, typeof Target> = {
@@ -107,6 +108,8 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  // Edit dialog state
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   // Workspace management state
   const [worktreeStatus, setWorktreeStatus] = useState<WorktreeStatus | null>(null);
   const [worktreeDiff, setWorktreeDiff] = useState<WorktreeDiff | null>(null);
@@ -396,9 +399,30 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
               )}
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="shrink-0 -mr-1 -mt-1 hover:bg-destructive/10 hover:text-destructive transition-colors" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1 shrink-0 -mr-1 -mt-1">
+            {/* Edit button - disabled when task is running */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="hover:bg-primary/10 hover:text-primary transition-colors"
+                    onClick={() => setIsEditDialogOpen(true)}
+                    disabled={isRunning && !isStuck}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {isRunning && !isStuck ? 'Cannot edit while task is running' : 'Edit task'}
+              </TooltipContent>
+            </Tooltip>
+            <Button variant="ghost" size="icon" className="hover:bg-destructive/10 hover:text-destructive transition-colors" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
       <Separator />
@@ -1304,6 +1328,13 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Task Dialog */}
+      <TaskEditDialog
+        task={task}
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+      />
       </div>
     </TooltipProvider>
   );

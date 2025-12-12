@@ -1,0 +1,253 @@
+/**
+ * TaskEditDialog - Dialog for editing task title and description
+ *
+ * Allows users to modify the title and description of an existing task.
+ * Follows the same dialog pattern as TaskCreationWizard for consistency.
+ *
+ * Features:
+ * - Pre-populates form with current task values
+ * - Form validation (title and description required)
+ * - Shows attached images in read-only mode (if task has images)
+ * - Saves changes via persistUpdateTask (updates store + spec files)
+ * - Prevents save when no changes have been made
+ *
+ * @example
+ * ```tsx
+ * <TaskEditDialog
+ *   task={selectedTask}
+ *   open={isEditDialogOpen}
+ *   onOpenChange={setIsEditDialogOpen}
+ *   onSaved={() => console.log('Task updated!')}
+ * />
+ * ```
+ */
+import { useState, useEffect } from 'react';
+import { Loader2, Image as ImageIcon, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from './ui/dialog';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
+import { Label } from './ui/label';
+import { persistUpdateTask } from '../stores/task-store';
+import { cn } from '../lib/utils';
+import type { Task, ImageAttachment } from '../../shared/types';
+
+/**
+ * Props for the TaskEditDialog component
+ */
+interface TaskEditDialogProps {
+  /** The task to edit */
+  task: Task;
+  /** Whether the dialog is open */
+  open: boolean;
+  /** Callback when the dialog open state changes */
+  onOpenChange: (open: boolean) => void;
+  /** Optional callback when task is successfully saved */
+  onSaved?: () => void;
+}
+
+export function TaskEditDialog({ task, open, onOpenChange, onSaved }: TaskEditDialogProps) {
+  const [title, setTitle] = useState(task.title);
+  const [description, setDescription] = useState(task.description);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showImages, setShowImages] = useState(false);
+
+  // Get attached images from task metadata
+  const attachedImages: ImageAttachment[] = task.metadata?.attachedImages || [];
+
+  // Reset form when task changes or dialog opens
+  useEffect(() => {
+    if (open) {
+      setTitle(task.title);
+      setDescription(task.description);
+      setError(null);
+      // Auto-expand images section if task has images
+      setShowImages(attachedImages.length > 0);
+    }
+  }, [open, task.title, task.description, attachedImages.length]);
+
+  const handleSave = async () => {
+    // Validate input
+    if (!title.trim()) {
+      setError('Title is required');
+      return;
+    }
+    if (!description.trim()) {
+      setError('Description is required');
+      return;
+    }
+
+    // Check if anything changed
+    const trimmedTitle = title.trim();
+    const trimmedDescription = description.trim();
+    if (trimmedTitle === task.title && trimmedDescription === task.description) {
+      // No changes, just close
+      onOpenChange(false);
+      return;
+    }
+
+    setIsSaving(true);
+    setError(null);
+
+    const success = await persistUpdateTask(task.id, {
+      title: trimmedTitle,
+      description: trimmedDescription
+    });
+
+    if (success) {
+      onOpenChange(false);
+      onSaved?.();
+    } else {
+      setError('Failed to update task. Please try again.');
+    }
+
+    setIsSaving(false);
+  };
+
+  const handleClose = () => {
+    if (!isSaving) {
+      onOpenChange(false);
+    }
+  };
+
+  const isValid = title.trim().length > 0 && description.trim().length > 0;
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-foreground">Edit Task</DialogTitle>
+          <DialogDescription>
+            Update the task title and description. Changes will be saved to the spec files.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-5 py-4">
+          {/* Title */}
+          <div className="space-y-2">
+            <Label htmlFor="edit-title" className="text-sm font-medium text-foreground">
+              Task Title
+            </Label>
+            <Input
+              id="edit-title"
+              placeholder="e.g., Add user authentication"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={isSaving}
+            />
+          </div>
+
+          {/* Description */}
+          <div className="space-y-2">
+            <Label htmlFor="edit-description" className="text-sm font-medium text-foreground">
+              Description
+            </Label>
+            <Textarea
+              id="edit-description"
+              placeholder="Describe the feature, bug fix, or improvement..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={5}
+              disabled={isSaving}
+            />
+          </div>
+
+          {/* Read-only Images Section (only shown if task has images) */}
+          {attachedImages.length > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowImages(!showImages)}
+                className={cn(
+                  'flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors',
+                  'w-full justify-between py-2 px-3 rounded-md hover:bg-muted/50'
+                )}
+                disabled={isSaving}
+              >
+                <span className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4" />
+                  Attached Images
+                  <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                    {attachedImages.length}
+                  </span>
+                </span>
+                {showImages ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </button>
+
+              {showImages && (
+                <div className="space-y-3 p-4 rounded-lg border border-border bg-muted/30">
+                  <p className="text-xs text-muted-foreground">
+                    These images were attached when the task was created. They cannot be modified.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {attachedImages.map((image) => (
+                      <div
+                        key={image.id}
+                        className="relative group rounded-lg overflow-hidden border border-border bg-background"
+                      >
+                        {image.thumbnail ? (
+                          <img
+                            src={`data:${image.mimeType};base64,${image.thumbnail}`}
+                            alt={image.filename}
+                            className="w-full h-24 object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-24 flex items-center justify-center bg-muted">
+                            <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1">
+                          <p className="text-xs text-white truncate" title={image.filename}>
+                            {image.filename}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div className="rounded-lg bg-[var(--error-light)] border border-[var(--error)]/30 p-3 text-sm text-[var(--error)]">
+              {error}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose} disabled={isSaving}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={isSaving || !isValid}
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save Changes'
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
