@@ -168,8 +168,16 @@ _bmad-output/
 OPUS_ANALYSIS_AND_IDEAS.md
 /.github/agents
 
+_bmad
+_bmad-output
+
 # Auto Claude generated files
 .security-key
 /shared_docs
 logs/security/
 Agents.md
+
+# Claude Code - local only (docs/ is tracked)
+.claude/settings.local.json
+.claude/worktrees/
+.claude/local/
