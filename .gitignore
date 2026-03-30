@@ -86,4 +86,7 @@ dev/
 _bmad
 _bmad-output
 
-.claude
+# Claude Code - local only (docs/ is tracked)
+.claude/settings.local.json
+.claude/worktrees/
+.claude/local/
